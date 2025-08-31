@@ -4,7 +4,6 @@ mod server;
 use client::*;
 use server::*;
 use std::io;
-use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 
@@ -41,7 +40,6 @@ fn start_server() -> io::Result<()> {
     Ok(())
 }
 
-// Enhanced test client with better error handling
 fn start_client(port: u16) -> Result<(), Box<dyn std::error::Error>> {
     println!("Connecting to nREPL server...");
     let mut client = match NreplClient::connect("127.0.0.1", port) {
@@ -59,37 +57,39 @@ fn start_client(port: u16) -> Result<(), Box<dyn std::error::Error>> {
     client.set_timeouts(Duration::from_secs(10), Duration::from_secs(5))?;
 
     // Test describe first
-    println!("\n=== Testing describe ===");
-    match client.describe() {
-        Ok(desc) => {
-            println!("Server description successful");
-            if let Some(serde_bencode::value::Value::Dict(ops)) = desc.get("ops") {
-                println!("Available operations: {} ops", ops.len());
-            }
-        }
-        Err(e) => {
-            println!("Describe failed: {}", e);
-            return Ok(());
-        }
-    }
+    // println!("\n=== Testing describe ===");
+    // match client.describe() {
+    //     Ok(desc) => {
+    //         println!("Server description successful");
+    //         if let Some(serde_bencode::value::Value::Dict(ops)) = desc.get("ops") {
+    //             println!("Available operations: {} ops", ops.len());
+    //         }
+    //     }
+    //     Err(e) => {
+    //         println!("Describe failed: {}", e);
+    //         return Ok(());
+    //     }
+    // }
 
     // Test session creation
-    println!("\n=== Testing session creation ===");
-    match client.clone_session() {
-        Ok(session) => println!("Session created: {}", session),
-        Err(e) => {
-            println!("Session creation failed: {}", e);
-            return Ok(());
-        }
-    }
+    // println!("\n=== Testing session creation ===");
+    // match client.clone_session() {
+    //     Ok(session) => println!("Session created: {}", session),
+    //     Err(e) => {
+    //         println!("Session creation failed: {}", e);
+    //         return Ok(());
+    //     }
+    // }
 
-    // Test multiple evaluations
     let test_cases = vec![
         "(+ 1 2 3)",
         "(println \"Hello from Rust!\")",
         "(range 10)",
-        "(Thread/sleep 1000)", // This might timeout
+        //"(Thread/sleep 1000)", // This might timeout
         "(str \"Result: \" (+ 10 20 30))",
+        "(require '[clojure.string :as str])",
+        "(import (java.io File))",
+        "(str \"a\" \"b\")",
     ];
 
     for (i, code) in test_cases.iter().enumerate() {
@@ -125,7 +125,6 @@ fn start_client(port: u16) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Check if connection is still alive
         if !client.is_connected() {
             println!("Connection lost, stopping tests");
             break;

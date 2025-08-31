@@ -412,8 +412,11 @@ impl Drop for NreplClient {
 
 #[test]
 fn test_robust_connection() {
+    use crate::server::*;
+    let mut server = NreplServer::new();
+    let server_port = server.start_with_clj().expect("error when starting");
     // Start nREPL server with: lein repl :headless :host 127.0.0.1 :port 55821
-    if let Ok(mut client) = NreplClient::connect("127.0.0.1", 55821) {
+    if let Ok(mut client) = NreplClient::connect("127.0.0.1", server_port) {
         // Test multiple operations
         assert!(client.describe().is_ok());
         assert!(client.clone_session().is_ok());
@@ -425,5 +428,13 @@ fn test_robust_connection() {
         // Test timeout handling
         let result = client.eval_with_timeout("(Thread/sleep 100)", Duration::from_millis(50));
         assert!(matches!(result, Err(NreplError::Timeout)));
+
+        // test clojure std lib
+        let result = client.eval("(require '[clojure.string :as str])").unwrap();
+        assert_eq!(result.value, Some("nil".to_string()));
+        let result = client.eval("(str/reverse \"abc\")").unwrap();
+        assert_eq!(result.value, Some("\"cba\"".to_string()));
+        let _ = client.close();
+        let _ = server.stop();
     }
 }
