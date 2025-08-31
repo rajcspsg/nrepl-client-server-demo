@@ -3,6 +3,11 @@ use std::io::{ErrorKind, Read, Write};
 use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
+/// A client for interacting with an nREPL server over TCP.
+///
+/// `NreplClient` manages the connection, session, and communication
+/// with an nREPL server, providing methods to evaluate code,
+/// manage sessions, and handle timeouts.
 pub struct NreplClient {
     stream: TcpStream,
     session: Option<String>,
@@ -58,6 +63,17 @@ impl From<std::io::Error> for NreplError {
 }
 
 impl NreplClient {
+    /// Connects to an nREPL server at the given host and port.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - The hostname or IP address of the nREPL server.
+    /// * `port` - The port number of the nREPL server.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a new `NreplClient` if successful,
+    /// or an `NreplError` if the connection fails.
     pub fn connect(host: &str, port: u16) -> Result<Self, NreplError> {
         let stream = TcpStream::connect(format!("{}:{}", host, port))?;
 
@@ -90,18 +106,34 @@ impl NreplClient {
         })
     }
 
+    /// Sets the read and write timeouts for the client connection.
+    ///
+    /// # Arguments
+    ///
+    /// * `read_timeout` - Duration for read timeout.
+    /// * `write_timeout` - Duration for write timeout.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if successful, or an `NreplError` if setting timeouts fails.
     pub fn set_timeouts(
         &mut self,
         read_timeout: Duration,
         write_timeout: Duration,
     ) -> Result<(), NreplError> {
-        self.read_timeout = read_timeout;
-        self.write_timeout = write_timeout;
         self.stream.set_read_timeout(Some(read_timeout))?;
         self.stream.set_write_timeout(Some(write_timeout))?;
+        self.read_timeout = read_timeout;
+        self.write_timeout = write_timeout;
         Ok(())
     }
 
+    /// Creates a new session on the nREPL server and updates the client session.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the new session ID as a `String` if successful,
+    /// or an `NreplError` if the operation fails.
     pub fn clone_session(&mut self) -> Result<String, NreplError> {
         let mut msg = HashMap::new();
         msg.insert(
@@ -129,15 +161,37 @@ impl NreplClient {
         ))
     }
 
+    /// Evaluates the given Clojure code on the nREPL server with a default timeout.
+    ///
+    /// # Arguments
+    ///
+    /// * `code` - The Clojure code to evaluate.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing an `EvalResult` if successful,
+    /// or an `NreplError` if the evaluation fails.
     pub fn eval(&mut self, code: &str) -> Result<EvalResult, NreplError> {
         self.eval_with_timeout(code, Duration::from_secs(60))
     }
 
+    /// Evaluates the given Clojure code on the nREPL server with a custom timeout.
+    ///
+    /// # Arguments
+    ///
+    /// * `code` - The Clojure code to evaluate.
+    /// * `timeout` - The maximum duration to wait for evaluation.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing an `EvalResult` if successful,
+    /// or an `NreplError` if the evaluation fails or times out.
     pub fn eval_with_timeout(
         &mut self,
         code: &str,
         timeout: Duration,
     ) -> Result<EvalResult, NreplError> {
+        // ...
         // Ensure there a session already otherwise create new
         if self.session.is_none() {
             self.clone_session()?;
@@ -229,6 +283,12 @@ impl NreplClient {
         Ok(result)
     }
 
+    /// Requests a description of the nREPL server's capabilities and operations.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a `HashMap` of server information if successful,
+    /// or an `NreplError` if the operation fails.
     pub fn describe(&mut self) -> Result<HashMap<String, serde_bencode::value::Value>, NreplError> {
         let mut msg = HashMap::new();
         msg.insert(
@@ -244,6 +304,12 @@ impl NreplClient {
         self.read_message_with_timeout()
     }
 
+    /// Sends an interrupt request to the nREPL server for the current session.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the interrupt was sent successfully,
+    /// or an `NreplError` if the operation fails.
     pub fn interrupt(&mut self) -> Result<(), NreplError> {
         if let Some(session) = &self.session.clone() {
             let mut msg = HashMap::new();
@@ -266,6 +332,11 @@ impl NreplClient {
         Ok(())
     }
 
+    /// Checks if the client is still connected to the nREPL server.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the connection is alive, `false` otherwise.
     pub fn is_connected(&mut self) -> bool {
         // Try to send a small describe message to check connection
         let mut msg = HashMap::new();
@@ -379,6 +450,12 @@ impl NreplClient {
         }
     }
 
+    /// Closes the client connection and ends the session on the nREPL server.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the connection and session were closed successfully,
+    /// or an `NreplError` if the operation fails.
     pub fn close(&mut self) -> Result<(), NreplError> {
         if let Some(session) = &self.session.clone() {
             let mut msg = HashMap::new();

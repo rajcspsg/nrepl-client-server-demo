@@ -1,17 +1,25 @@
 use regex::Regex;
 use std::io;
 use std::io::{BufRead, BufReader};
-use std::net::{SocketAddr, TcpListener};
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
+/// A server manager for launching and controlling an nREPL server process.
+///
+/// `NreplServer` provides methods to start an nREPL server using Clojure CLI or Leiningen,
+/// check its status, retrieve the port, read output, and stop the server.
 pub struct NreplServer {
     child: Option<Child>,
     port: Option<u16>,
 }
 
 impl NreplServer {
+    /// Creates a new `NreplServer` instance with no running process.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `NreplServer` with no child process or port set.
     pub fn new() -> Self {
         Self {
             child: None,
@@ -25,6 +33,12 @@ impl NreplServer {
         caps[1].parse::<u16>().ok()
     }
 
+    /// Starts an nREPL server using the Clojure CLI (`clj`).
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the port number the server is listening on if successful,
+    /// or an `io::Error` if the server fails to start.
     pub fn start_with_clj(&mut self) -> io::Result<u16> {
         let mut cmd = Command::new("clj");
 
@@ -65,6 +79,12 @@ impl NreplServer {
         Ok(confirmed_port)
     }
 
+    /// Starts an nREPL server using Leiningen (`lein repl :headless`).
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the port number the server is listening on if successful,
+    /// or an `io::Error` if the server fails to start.
     pub fn start_with_lein(&mut self) -> io::Result<u16> {
         let mut cmd = Command::new("lein");
         cmd.args(&["repl", ":headless"])
@@ -110,10 +130,21 @@ impl NreplServer {
         }
     }
 
+    /// Returns the port number the nREPL server is listening on, if known.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(port)` if the server port is known, or `None` otherwise.
     pub fn port(&self) -> Option<u16> {
         self.port
     }
 
+    /// Reads and collects output lines from the server process's stdout.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a vector of output lines if successful,
+    /// or an `io::Error` if reading fails.
     pub fn read_output(&mut self) -> io::Result<Vec<String>> {
         let mut lines = Vec::new();
 
@@ -132,12 +163,17 @@ impl NreplServer {
         Ok(lines)
     }
 
+    /// Stops the nREPL server process if it is running.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the server was stopped successfully,
+    /// or an `io::Error` if stopping the process fails.
     pub fn stop(&mut self) -> io::Result<()> {
         if let Some(mut child) = self.child.take() {
             child.kill()?;
             child.wait()?;
         }
-        self.port = None;
         Ok(())
     }
 }
